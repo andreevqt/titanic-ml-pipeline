@@ -1,3 +1,4 @@
+import joblib
 import pandas as pd
 from pathlib import Path
 from typing import Tuple
@@ -28,14 +29,12 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
 
     df["FamilySize"] = df["SibSp"] + df["Parch"] + 1
     df["IsAlone"] = (df["FamilySize"] == 1).astype(int)
+    df = df.drop(columns=["SibSp", "Parch"])
 
     df["Sex"] = (df["Sex"] == "male").astype(int)
 
-    embarked_dummies = pd.get_dummies(df["Embarked"], prefix="Embarked")
+    embarked_dummies = pd.get_dummies(df["Embarked"], prefix="Embarked").astype(int)
     df = pd.concat([df.drop(columns=["Embarked"]), embarked_dummies], axis=1)
-
-    scaler = StandardScaler()
-    df[["Age", "Fare", "FamilySize"]] = scaler.fit_transform(df[["Age", "Fare", "FamilySize"]])
 
     return df
 
@@ -46,7 +45,8 @@ def load(
     train_path: str = TRAIN_DATA_PATH,
     test_path: str = TEST_DATA_PATH,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    Path(processed_path).parent.mkdir(parents=True, exist_ok=True)
+    for p in [processed_path, train_path, test_path]:
+        Path(p).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(processed_path, index=False)
 
     X = df.drop(columns=["Survived"])
@@ -55,6 +55,14 @@ def load(
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y
     )
+
+    scale_cols = ["Age", "Fare", "FamilySize"]
+    scaler = StandardScaler()
+    X_train[scale_cols] = scaler.fit_transform(X_train[scale_cols])
+    X_test[scale_cols] = scaler.transform(X_test[scale_cols])
+
+    scaler_path = Path(processed_path).parent / "scaler.joblib"
+    joblib.dump(scaler, scaler_path)
 
     train_df = pd.concat(
         [X_train.reset_index(drop=True), y_train.reset_index(drop=True)], axis=1
