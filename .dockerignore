@@ -1,0 +1,9 @@
+mlruns/
+reports/
+data/processed/
+__pycache__/
+*.pyc
+.git/
+docs/
+.pytest_cache/
+*.egg-info/
