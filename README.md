@@ -4,46 +4,26 @@
 
 ## Требования
 
-Задача — предсказать выживаемость пассажиров Титаника (бинарная классификация: `Survived = 1` или `0`).
+Задача - предсказать выживаемость пассажиров Титаника (бинарная классификация: `Survived = 1` или `0`).
 
-**Ключевой вопрос:** по каким признакам можно определить, выжил ли пассажир?
+**Цель:** автоматизировать весь ML-пайплайн - от загрузки данных до мониторинга модели - и упаковать его в воспроизводимый Docker-контейнер с CI/CD.
 
-**Цель:** автоматизировать весь ML-пайплайн — от загрузки данных до мониторинга модели — и упаковать его в воспроизводимый Docker-контейнер с CI/CD.
+## Схема
 
-## Схема пайплайна
-
-```
-data/raw/Titanic-Dataset.csv
-         │
-         ▼
-  ┌─────────────┐
-  │    ETL      │  очистка, признаки, разбивка
-  └──────┬──────┘
-         │ data/processed/
-         ▼
-  ┌─────────────┐
-  │  AutoML     │  FLAML: подбор модели + гиперпараметры
-  │  (FLAML)    │──► MLflow (метрики, параметры, модель)
-  └──────┬──────┘
-         ├──► reports/ (confusion matrix, ROC, feature importance)
-         ▼
-  ┌─────────────┐
-  │  Monitoring │  Evidently: дрейф данных → drift_report.html
-  └─────────────┘
-```
+![Pipeline Scheme](reports/pipeline-scheme.png)
 
 ## ETL (Extract, Transform, Load)
 
 | Шаг | Логика |
 |-----|--------|
-| Extract | Загрузка `data/raw/Titanic-Dataset.csv` |
+| Extract | Загрузка `data/input/Titanic-Dataset.csv` |
 | Удаление столбцов | `Name`, `Ticket`, `PassengerId`, `Cabin` (>77% пропусков) |
 | Заполнение `Age` | Медиана по группам `Pclass` + `Sex` |
 | Заполнение `Embarked` | Мода (`S`) |
 | Feature engineering | `FamilySize = SibSp + Parch + 1`, `IsAlone` |
 | Кодирование | Label-encoding `Sex`, one-hot `Embarked` |
 | Нормализация | StandardScaler на обучающей выборке: `Age`, `Fare`, `FamilySize` |
-| Load | `data/processed/titanic_clean.csv`, `train.csv`, `test.csv` |
+| Load | `data/output/titanic_clean.csv`, `train.csv`, `test.csv` |
 
 ## Архитектура ML-модели
 
@@ -76,34 +56,31 @@ data/raw/Titanic-Dataset.csv
 ### Feature Importance
 ![Feature Importance](reports/feature_importance.png)
 
-## AutoML (FLAML)
+## AutoML
 
-FLAML (Microsoft) — лёгкая библиотека AutoML с фиксированным временным бюджетом.
+FLAML - лёгкая библиотека AutoML с фиксированным временным бюджетом.
 
-- `time_budget=60` сек — поиск лучшей конфигурации за 1 минуту
-- `metric="roc_auc"` — оптимизируемая метрика
+- `time_budget=60` сек - поиск лучшей конфигурации за 1 минуту
+- `metric="roc_auc"` - оптимизируемая метрика
 - Все запуски логируются в MLflow: параметры, метрики, артефакт модели
 
 **Файл:** `.github/workflows/ci.yml`
-
-При каждом PR в `main`: запускаются тесты (`pytest tests/ -v`).
-При merge в `main`: собирается и пушится Docker-образ в GHCR.
-
 **Образ:** `ghcr.io/andreevqt/titanic-ml-pipeline:latest`
+
 ## Мониторинг
 
-### Качество модели (MLflow)
+### Качество модели
 
 MLflow логирует для каждого запуска:
 - Параметры: `best_estimator`, `time_budget`, гиперпараметры
 - Метрики: `val_roc_auc`, `val_accuracy`, `val_f1`, `cpu_percent`, `memory_mb`
 - Артефакт: обученная модель
 
-### Дрейф данных (Evidently)
+### Дрейф данных
 
 `reports/drift_report.html` — отчёт о дрейфе признаков и качестве данных (train vs test).
 
-### Инфраструктура (psutil + Docker)
+### Инфраструктура
 
 - `cpu_percent` и `memory_mb` — логируются в MLflow во время обучения
 - Мониторинг ресурсов контейнера: `docker stats`

@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN useradd -m appuser
+RUN useradd -m user
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 RUN mkdir -p data/processed reports mlruns && \
-    chown -R appuser:appuser /app
+    chown -R user:user /app
 
-USER appuser
+USER user
 
 CMD ["python", "-m", "src.pipeline"]

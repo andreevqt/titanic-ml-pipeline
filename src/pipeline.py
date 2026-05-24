@@ -18,10 +18,10 @@ def run_pipeline(
     tracking_uri: str = MLFLOW_TRACKING_URI,
     time_budget: int = FLAML_TIME_BUDGET,
 ) -> None:
-    print("=== ETL ===")
+    print("ETL:")
     run_etl(raw_path, processed_path, train_path, test_path)
 
-    print("=== Training ===")
+    print("Training:")
     result = run_training(train_path, test_path, tracking_uri, time_budget)
     print(
         f"Best: {result['estimator'].__class__.__name__}, "
@@ -30,7 +30,7 @@ def run_pipeline(
         f"F1: {result['val_f1']:.4f}"
     )
 
-    print("=== Evaluation ===")
+    print("Evaluation:")
     run_evaluation(
         result["estimator"],
         result["X_test"],
@@ -40,11 +40,11 @@ def run_pipeline(
         reports_dir,
     )
 
-    print("=== Monitoring ===")
+    print("Monitoring:")
     drift_path = run_monitoring(train_path, test_path, reports_dir)
     print(f"Drift report: {drift_path}")
 
-    print("=== Done ===")
+    print("Done")
 
 
 if __name__ == "__main__":
