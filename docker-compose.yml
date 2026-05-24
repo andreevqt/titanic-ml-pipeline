@@ -1,0 +1,16 @@
+services:
+  pipeline:
+    build: .
+    volumes:
+      - ./reports:/app/reports
+      - ./mlruns:/app/mlruns
+    environment:
+      - FLAML_TIME_BUDGET=60
+
+  mlflow-ui:
+    build: .
+    command: mlflow ui --host 0.0.0.0 --backend-store-uri /app/mlruns
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
